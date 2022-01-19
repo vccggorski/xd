@@ -1,77 +1,64 @@
-use heapless::Vec;
-use core::cell::RefCell;
-
-pub struct MemoryDispenser<'a> {
-    memory: &'a mut [u8],
-    used: RefCell<usize>,
-}
-
-pub struct OutOfMemory(());
-
-impl<'a> MemoryDispenser<'a> {
-    pub fn new(slice: &'a mut [u8]) -> Self {
-        Self {
-            memory: slice,
-            used: 0_usize.into(),
-        }
-    }
-
-    pub fn allocate<T: Default>(&self, count: usize) -> Result<&mut [T], OutOfMemory> {
-        let t_size = core::mem::size_of::<T>();
-        let used = *self.used.borrow();
-        if used + t_size * count > self.memory.len() {
-            return Err(OutOfMemory(()));
-        }
-        let output_slice = unsafe {
-            core::slice::from_raw_parts_mut(self.memory.as_ptr().add(used) as *mut T, count)
-        };
-        *self.used.borrow_mut() += t_size * count;
-        output_slice
-            .iter_mut()
-            .for_each(|v| *v = Default::default());
-        Ok(output_slice)
-    }
-}
+use lzma_rs::*;
+use lzma_rs::decompress::*;
+use allocator::MemoryDispenser;
+use io::Cursor;
+use env_logger;
 
 fn main() {
-    let mut memory = [0_u8; 64];
-    let mut memory_dispenser = MemoryDispenser::new(&mut memory);
-    let a: &mut [Vec<u32, 2>] = memory_dispenser.allocate(2).unwrap_or_else(|_| panic!());
-    let b: &mut [Vec<u32, 2>] = memory_dispenser.allocate(2).unwrap_or_else(|_| panic!());
-    a[0].push(0xdeadbeef).unwrap();
-    a[0].push(0xffffffff).unwrap();
-    b[0].push(0x01010101).unwrap();
-    b[1].push(0xabcddcba).unwrap();
-    a[1].push(0xdeadbeef).unwrap();
-    a[1].push(0xffffffff).unwrap();
-    b[0].push(0xabcddcba).unwrap();
-    b[1].push(0x01010101).unwrap();
+    env_logger::init();
+    let mut memory = [0_u8; 18694];
+    let mm = MemoryDispenser::new(&mut memory);
+    let options = Options {
+        memlimit: Some(125),
+        ..Default::default()
+    };
+    let compressed_data = [
+        0x5d, 0x00, 0x00, 0x80, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x30,
+        0xe9, 0x14, 0xb4, 0x91, 0x15, 0x7b, 0xd4, 0x77, 0xff, 0xff, 0xf4, 0xcc, 0x80, 0x00,
+    ];
+    let mut decompressed_data = [0_u8; 32];
+    no_std_lzma_decompress_with_options(
+        &mm,
+        &mut Cursor::new(&compressed_data),
+        &mut Cursor::new(&mut decompressed_data[..]),
+        &options,
+    ).unwrap();
+    println!("{:#x?}", decompressed_data);
 
-    println!("{:#x?}", a);
-    println!("{:#x?}", b);
-    println!("{:x?}", memory);
+    let options = Options {
+        memlimit: Some(1024),
+        ..Default::default()
+    };
+    let compressed_data = [
+        0x5d, 0x00, 0x00, 0x80, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x30,
+        0xe9, 0x14, 0xb4, 0x91, 0x15, 0x7b, 0xd4, 0x77, 0xff, 0xff, 0xf4, 0xcc, 0x80, 0x00,
+    ];
+    let mut decompressed_data = [0_u8; 32];
+    lzma_decompress_with_options(
+        &mut Cursor::new(&compressed_data),
+        &mut Cursor::new(&mut decompressed_data[..]),
+        &options,
+    ).unwrap();
+    println!("{:#x?}", decompressed_data);
 }
 
 /*
+Result:
 [
-    [
-        0xdeadbeef,
-        0xffffffff,
-    ],
-    [
-        0xdeadbeef,
-        0xffffffff,
-    ],
+    0x61,
+    0x61,
+    0x61,
+    0x61,
+    0x61,
+    0x62,
+    0x62,
+    0x62,
+    0x62,
+    0x62,
+    0x63,
+    0x63,
+    0x63,
+    0x63,
+    0x63,
 ]
-[
-    [
-        0x1010101,
-        0xabcddcba,
-    ],
-    [
-        0xabcddcba,
-        0x1010101,
-    ],
-]
-[2, 0, 0, 0, 0, 0, 0, 0, ef, be, ad, de, ff, ff, ff, ff, 2, 0, 0, 0, 0, 0, 0, 0, ef, be, ad, de, ff, ff, ff, ff, 2, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, ba, dc, cd, ab, 2, 0, 0, 0, 0, 0, 0, 0, ba, dc, cd, ab, 1, 1, 1, 1]
 */
