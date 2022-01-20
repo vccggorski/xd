@@ -6,55 +6,53 @@ use lzma_rs::*;
 
 fn main() {
     env_logger::init();
+//    {
+//        let mut memory = vec![0; 400_000];
+//        let mm = MemoryDispenser::new(&mut memory);
+//        let options = Options {
+//            memlimit: Some(300_000),
+//            ..Default::default()
+//        };
+//        let mut compressed_data = std::io::BufReader::new(
+//            std::fs::File::open("/home/glaeqen/repos/lzma/xd/simple.lzma").unwrap(),
+//        );
+//        let mut decompressed_data = Vec::new();
+//        no_std_lzma_decompress_with_options(
+//            &mm,
+//            &mut compressed_data,
+//            &mut decompressed_data,
+//            &options,
+//        )
+//        .unwrap();
+//        println!("{:#x?}", &decompressed_data[..32]);
+//    }
+//    {
+//        let options = Options {
+//            ..Default::default()
+//        };
+//        let mut compressed_data =
+//            std::io::BufReader::new(
+//            std::fs::File::open("/home/glaeqen/repos/lzma/xd/simple.lzma").unwrap()
+//            );
+//        let mut decompressed_data = Vec::new();
+//        lzma_decompress_with_options(
+//            &mut compressed_data,
+//            &mut decompressed_data,
+//            &options,
+//        )
+//        .unwrap();
+//        println!("{:#x?}", &decompressed_data[..32]);
+//    }
     {
-        let mut memory = [0_u8; 18694];
+        let mut memory = vec![0; 400_000];
         let mm = MemoryDispenser::new(&mut memory);
-        let options = Options {
-            memlimit: Some(125),
-            ..Default::default()
-        };
-        let compressed_data = [
-            0x5d, 0x00, 0x00, 0x80, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
-            0x30, 0xe9, 0x14, 0xb4, 0x91, 0x15, 0x7b, 0xd4, 0x77, 0xff, 0xff, 0xf4, 0xcc, 0x80,
-            0x00,
-        ];
-        let compressed_data = &mut Cursor::new(&compressed_data);
-        let mut compressed_data = std::io::BufReader::new(
-            std::fs::File::open("/home/glaeqen/repos/lzma/xd/simple.lzma").unwrap(),
-        );
-        let mut decompressed_data = [0_u8; 32];
-        no_std_lzma_decompress_with_options(
-            &mm,
-            &mut compressed_data,
-            &mut Cursor::new(&mut decompressed_data[..]),
-            &options,
-        )
-        .unwrap();
-        println!("{:#x?}", decompressed_data);
-    }
-    {
-        let options = Options {
-            memlimit: Some(1024),
-            ..Default::default()
-        };
-        let compressed_data = [
-            0x5d, 0x00, 0x00, 0x80, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
-            0x30, 0xe9, 0x14, 0xb4, 0x91, 0x15, 0x7b, 0xd4, 0x77, 0xff, 0xff, 0xf4, 0xcc, 0x80,
-            0x00,
-        ];
-        let compressed_data = &mut Cursor::new(&compressed_data);
+        let mut stream = Stream::no_std_new(&mm, std::io::stdout());
+        let mut stream = Stream::new(std::io::stdout());
         let mut compressed_data =
             std::io::BufReader::new(
             std::fs::File::open("/home/glaeqen/repos/lzma/xd/simple.lzma").unwrap()
             );
-        let mut decompressed_data = [0_u8; 32];
-        lzma_decompress_with_options(
-            &mut compressed_data,
-            &mut Cursor::new(&mut decompressed_data[..]),
-            &options,
-        )
-        .unwrap();
-        println!("{:#x?}", decompressed_data);
+        std::io::copy(&mut compressed_data, &mut stream).unwrap();
     }
 }
 
