@@ -6,17 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#lzma-rs = { version = "0.2.0", features = ["stream"] }
-lzma-rs = { path = "../lzma-rs", version = "0.2.0", features = ["log", "stream"] }
+serialport = "4.0.1"
 env_logger = "0.9.0"
 
 [features]
-blocking = []
-
-# not available in vanilla lzma-rs
-blocking-no-std= []
-
-stream = []
-
-# not available in vanilla lzma-rs
-stream-no-std = []
